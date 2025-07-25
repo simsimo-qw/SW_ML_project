@@ -1,0 +1,33 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+
+# Jupyter notebook checkpoints
+*.ipynb_checkpoints/
+
+# Virtual environment folders
+venv/
+env/
+
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+
+# MacOS or Windows hidden files
+.DS_Store
+Thumbs.db
+
+# IDE/editor-specific settings
+.vscode/
+.idea/
+
+# Results and outputs
+results/
+*.png
+*.jpg
+
+# Ignore datasets (if large)
+data/*.csv
