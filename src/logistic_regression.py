@@ -1,51 +1,9 @@
-#!/usr/bin/env python3
-"""
-Logistic Regression Implementation from Scratch
-==============================================
-
-This module implements Logistic Regression using gradient descent optimization
-with support for L1 and L2 regularization.
-
-Author: [SW]
-Course: Machine Learning
-"""
-
 import numpy as np
 from typing import Optional, Tuple, List
 import matplotlib.pyplot as plt
 
 
 class LogisticRegression:
-    """
-    Logistic Regression classifier implemented from scratch.
-    
-    This implementation uses gradient descent optimization and supports
-    L1 and L2 regularization to prevent overfitting.
-    
-    Parameters
-    ----------
-    learning_rate : float, default=0.01
-        Step size for gradient descent optimization
-    max_iterations : int, default=1000
-        Maximum number of iterations for convergence
-    tolerance : float, default=1e-6
-        Convergence tolerance for weight changes
-    regularization : str or None, default=None
-        Type of regularization ('l1', 'l2', or None)
-    lambda_reg : float, default=0.01
-        Regularization strength parameter
-    verbose : bool, default=False
-        Whether to print training progress
-        
-    Attributes
-    ----------
-    weights : ndarray of shape (n_features,)
-        Learned feature weights
-    bias : float
-        Learned bias term
-    cost_history : list
-        History of cost function values during training
-    """
     
     def __init__(
         self, 
@@ -71,44 +29,18 @@ class LogisticRegression:
         self.is_fitted = False
         
     def _sigmoid(self, z: np.ndarray) -> np.ndarray:
-        """
-        Compute sigmoid activation function with numerical stability.
         
-        Parameters
-        ----------
-        z : ndarray
-            Input values
-            
-        Returns
-        -------
-        ndarray
-            Sigmoid activation values
-        """
         # Clip z to prevent overflow in exp(-z)
         z = np.clip(z, -500, 500)
         return 1 / (1 + np.exp(-z))
     
     def _compute_cost(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Compute the logistic regression cost function with regularization.
         
-        Parameters
-        ----------
-        y_true : ndarray of shape (n_samples,)
-            True binary labels
-        y_pred : ndarray of shape (n_samples,)
-            Predicted probabilities
-            
-        Returns
-        -------
-        float
-            Cost function value
-        """
-        # Add small epsilon to prevent log(0)
+        # small epsilon to prevent log(0)
         epsilon = 1e-15
         y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
         
-        # Compute cross-entropy loss
+        # cross-entropy loss
         n_samples = len(y_true)
         cost = -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
         
@@ -126,26 +58,10 @@ class LogisticRegression:
         y_true: np.ndarray, 
         y_pred: np.ndarray
     ) -> Tuple[np.ndarray, float]:
-        """
-        Compute gradients for weights and bias.
-        
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Training data
-        y_true : ndarray of shape (n_samples,)
-            True binary labels
-        y_pred : ndarray of shape (n_samples,)
-            Predicted probabilities
-            
-        Returns
-        -------
-        tuple
-            Gradients for weights and bias
-        """
+       
         n_samples = X.shape[0]
         
-        # Compute base gradients
+        # base gradients
         dw = (1 / n_samples) * np.dot(X.T, (y_pred - y_true))
         db = (1 / n_samples) * np.sum(y_pred - y_true)
         
@@ -158,22 +74,7 @@ class LogisticRegression:
         return dw, db
     
     def fit(self, X: np.ndarray, y: np.ndarray) -> 'LogisticRegression':
-        """
-        Train the logistic regression model.
         
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Training data
-        y : ndarray of shape (n_samples,)
-            Target values (0 or 1)
-            
-        Returns
-        -------
-        self
-            Returns the instance itself
-        """
-        # Validate input
         X = np.asarray(X)
         y = np.asarray(y)
         
@@ -189,8 +90,8 @@ class LogisticRegression:
         n_samples, n_features = X.shape
         self.n_features = n_features
         
-        # Initialize parameters
-        np.random.seed(42)  # For reproducibility
+        # parameters initialization and reproducibility 
+        np.random.seed(42)  
         self.weights = np.random.normal(0, 0.01, n_features)
         self.bias = 0.0
         self.cost_history = []
@@ -201,23 +102,20 @@ class LogisticRegression:
             print(f"Learning rate: {self.learning_rate}")
             print(f"Regularization: {self.regularization}")
         
-        # Gradient descent optimization
+        # GDO
         for iteration in range(self.max_iterations):
             # Forward propagation
             z = np.dot(X, self.weights) + self.bias
             y_pred = self._sigmoid(z)
             
-            # Compute cost
             cost = self._compute_cost(y, y_pred)
             self.cost_history.append(cost)
             
-            # Compute gradients
             dw, db = self._compute_gradients(X, y, y_pred)
             
-            # Store old weights for convergence check
             old_weights = self.weights.copy()
             
-            # Update parameters
+            # Update 
             self.weights -= self.learning_rate * dw
             self.bias -= self.learning_rate * db
             
@@ -227,8 +125,7 @@ class LogisticRegression:
                 if self.verbose:
                     print(f"Converged after {iteration + 1} iterations")
                 break
-                
-            # Print progress
+
             if self.verbose and (iteration + 1) % 100 == 0:
                 print(f"Iteration {iteration + 1}/{self.max_iterations}, Cost: {cost:.6f}")
         
@@ -240,19 +137,8 @@ class LogisticRegression:
         return self
     
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """
-        Predict class probabilities for samples in X.
+        #Predicted probabilities for the positive class
         
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Input samples
-            
-        Returns
-        -------
-        ndarray of shape (n_samples,)
-            Predicted probabilities for the positive class
-        """
         if not self.is_fitted:
             raise ValueError("Model must be fitted before making predictions")
             
@@ -266,45 +152,20 @@ class LogisticRegression:
         return self._sigmoid(z)
     
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Predict binary class labels for samples in X.
-        
-        Parameters
-        ----------
-        X : ndarray of shape (n_samples, n_features)
-            Input samples
-            
-        Returns
-        -------
-        ndarray of shape (n_samples,)
-            Predicted binary class labels (0 or 1)
-        """
+         #Predict binary class labels for samples in X.
         probabilities = self.predict_proba(X)
         return (probabilities >= 0.5).astype(int)
     
     def get_feature_importance(self) -> np.ndarray:
-        """
-        Get feature importance based on absolute weight values.
         
-        Returns
-        -------
-        ndarray of shape (n_features,)
-            Feature importance scores
-        """
+        #Get feature importance based on absolute weight values.
         if not self.is_fitted:
             raise ValueError("Model must be fitted before getting feature importance")
             
         return np.abs(self.weights)
     
     def get_params(self) -> dict:
-        """
-        Get model parameters.
         
-        Returns
-        -------
-        dict
-            Dictionary containing model parameters
-        """
         return {
             'learning_rate': self.learning_rate,
             'max_iterations': self.max_iterations,
@@ -315,19 +176,7 @@ class LogisticRegression:
         }
     
     def set_params(self, **params) -> 'LogisticRegression':
-        """
-        Set model parameters.
         
-        Parameters
-        ----------
-        **params
-            Model parameters to set
-            
-        Returns
-        -------
-        self
-            Returns the instance itself
-        """
         for key, value in params.items():
             if hasattr(self, key):
                 setattr(self, key, value)
@@ -342,29 +191,13 @@ def cross_validate_lr(
     cv_folds: int = 5,
     **lr_params
 ) -> dict:
-    """
-    Perform k-fold cross-validation for Logistic Regression.
     
-    Parameters
-    ----------
-    X : ndarray of shape (n_samples, n_features)
-        Training data
-    y : ndarray of shape (n_samples,)
-        Target values
-    cv_folds : int, default=5
-        Number of cross-validation folds
-    **lr_params
-        Parameters to pass to LogisticRegression
-        
-    Returns
-    -------
-    dict
-        Cross-validation scores
-    """
-    from sklearn.model_selection import KFold
+    # Cross-validation scores
+    
+    from sklearn.model_selection import StratifiedKFold
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
     
-    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
     scores = {'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
     
     for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
