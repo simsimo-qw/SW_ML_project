@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-Data Preprocessing Module for Wine Quality Classification
-========================================================
-
-This module handles data loading, cleaning, preprocessing, and splitting
-for the wine quality classification project.
-
-Author: [SW]
-Course: Machine Learning
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,34 +10,19 @@ warnings.filterwarnings('ignore')
 
 
 def load_wine_data(red_wine_path: str, white_wine_path: str) -> pd.DataFrame:
-    """
-    Load and combine red and white wine datasets.
     
-    Parameters
-    ----------
-    red_wine_path : str
-        Path to red wine dataset CSV file
-    white_wine_path : str
-        Path to white wine dataset CSV file
-        
-    Returns
-    -------
-    pd.DataFrame
-        Combined wine dataset
-    """
     try:
-        # Load datasets
+        #load datasets
         red_wine = pd.read_csv(red_wine_path, delimiter=';')
         white_wine = pd.read_csv(white_wine_path, delimiter=';')
         
         print(f"Loaded red wine dataset: {red_wine.shape}")
         print(f"Loaded white wine dataset: {white_wine.shape}")
         
-        # Add wine type feature
+        #add wine type feature
         red_wine['wine_type'] = 0  # Red wine
         white_wine['wine_type'] = 1  # White wine
-        
-        # Combine datasets
+        #combined data
         combined_data = pd.concat([red_wine, white_wine], ignore_index=True)
         
         print(f"Combined dataset shape: {combined_data.shape}")
@@ -63,29 +36,17 @@ def load_wine_data(red_wine_path: str, white_wine_path: str) -> pd.DataFrame:
 
 
 def explore_data(data: pd.DataFrame) -> Dict:
-    """
-    Perform basic exploratory data analysis.
     
-    Parameters
-    ----------
-    data : pd.DataFrame
-        Dataset to explore
-        
-    Returns
-    -------
-    dict
-        Dictionary containing exploration results
-    """
     print("="*60)
     print("EXPLORATORY DATA ANALYSIS")
     print("="*60)
     
-    # Basic information
+    
     print(f"\n1. Dataset Overview:")
     print(f"Shape: {data.shape}")
     print(f"Memory usage: {data.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
     
-    # Data types and missing values
+    
     print(f"\n2. Data Types and Missing Values:")
     info_df = pd.DataFrame({
         'Data Type': data.dtypes,
@@ -94,11 +55,11 @@ def explore_data(data: pd.DataFrame) -> Dict:
     })
     print(info_df)
     
-    # Basic statistics
+    
     print(f"\n3. Descriptive Statistics:")
     print(data.describe())
     
-    # Create binary target if not exists
+    # binary target 
     if 'quality_binary' not in data.columns:
         data['quality_binary'] = (data['quality'] >= 6).astype(int)
     
@@ -129,7 +90,6 @@ def explore_data(data: pd.DataFrame) -> Dict:
         'feature_correlations': correlations.to_dict()
     }
 
-
 def preprocess_data(
     red_wine_path: str,
     white_wine_path: str,
@@ -138,29 +98,7 @@ def preprocess_data(
     scaler_type: str = 'standard',
     random_state: int = 42
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str]]:
-    """
-    Complete preprocessing pipeline for wine quality data.
-    
-    Parameters
-    ----------
-    red_wine_path : str
-        Path to red wine dataset
-    white_wine_path : str
-        Path to white wine dataset
-    test_size : float, default=0.2
-        Test set size
-    validation_size : float, default=0.2
-        Validation set size (from remaining after test split)
-    scaler_type : str, default='standard'
-        Type of feature scaling
-    random_state : int, default=42
-        Random state for reproducibility
-        
-    Returns
-    -------
-    tuple
-        (X_train, X_val, X_test, y_train, y_val, y_test, feature_names)
-    """
+   
     print("="*80)
     print("DATA PREPROCESSING PIPELINE")
     print("="*80)
@@ -224,16 +162,7 @@ def preprocess_data(
 
 
 def create_data_visualizations(wine_data: pd.DataFrame, save_path: Optional[str] = None) -> None:
-    """
-    Create basic data visualizations.
-    
-    Parameters
-    ----------
-    wine_data : pd.DataFrame
-        Wine dataset
-    save_path : str, optional
-        Path to save visualizations
-    """
+  
     print("Creating data visualizations...")
     
     # Create binary target if not exists
@@ -248,20 +177,20 @@ def create_data_visualizations(wine_data: pd.DataFrame, save_path: Optional[str]
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     fig.suptitle('Wine Quality Dataset Overview', fontsize=16, fontweight='bold')
     
-    # 1. Quality distribution
+    # Quality distribution
     axes[0, 0].hist(wine_data['quality'], bins=range(3, 11), alpha=0.7, edgecolor='black')
     axes[0, 0].set_title('Original Quality Distribution')
     axes[0, 0].set_xlabel('Quality Score')
     axes[0, 0].set_ylabel('Count')
     
-    # 2. Binary quality distribution
+    # Binary quality distribution
     binary_counts = wine_data['quality_binary'].value_counts()
     axes[0, 1].bar(['Bad (<6)', 'Good (≥6)'], binary_counts.values, 
                    color=['red', 'green'], alpha=0.7)
     axes[0, 1].set_title('Binary Quality Distribution')
     axes[0, 1].set_ylabel('Count')
     
-    # 3. Wine type distribution
+    # Wine type distribution
     if 'wine_type' in wine_data.columns:
         wine_counts = wine_data['wine_type'].value_counts()
         axes[1, 0].bar(['Red', 'White'], wine_counts.values, 
@@ -269,7 +198,7 @@ def create_data_visualizations(wine_data: pd.DataFrame, save_path: Optional[str]
         axes[1, 0].set_title('Wine Type Distribution')
         axes[1, 0].set_ylabel('Count')
     
-    # 4. Feature importance (correlation with target)
+    # Feature importance (correlation with target)
     feature_cols = [col for col in wine_data.columns if col not in ['quality', 'quality_binary']]
     correlations = wine_data[feature_cols].corrwith(wine_data['quality_binary']).abs().sort_values(ascending=True)
     
@@ -296,46 +225,20 @@ def create_preprocessing_pipeline(
     create_plots: bool = True,
     save_path: Optional[str] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str]]:
-    """
-    Complete preprocessing pipeline with optional visualizations.
+   
     
-    This is the main function to call for data preprocessing.
-    
-    Parameters
-    ----------
-    red_wine_path : str
-        Path to red wine dataset  
-    white_wine_path : str
-        Path to white wine dataset
-    test_size : float, default=0.2
-        Test set size
-    validation_size : float, default=0.2
-        Validation set size
-    scaler_type : str, default='standard'
-        Type of feature scaling
-    create_plots : bool, default=True
-        Whether to create visualization plots
-    save_path : str, optional
-        Path to save results
-        
-    Returns
-    -------
-    tuple
-        (X_train_scaled, X_val_scaled, X_test_scaled, y_train, y_val, y_test, feature_names)
-    """
-    # Run preprocessing
     X_train, X_val, X_test, y_train, y_val, y_test, feature_names = preprocess_data(
         red_wine_path, white_wine_path, test_size, validation_size, scaler_type
     )
     
-    # Create visualizations if requested
+   
     if create_plots:
-        # Load raw data again for visualization
+        
         wine_data = load_wine_data(red_wine_path, white_wine_path)
         create_data_visualizations(wine_data, save_path)
     
-    print(f"\n✅ Preprocessing pipeline completed successfully!")
-    print(f"📊 Final dataset shapes:")
+    
+    print(f" Final dataset shapes:")
     print(f"   X_train: {X_train.shape}")
     print(f"   X_val: {X_val.shape}")
     print(f"   X_test: {X_test.shape}")
