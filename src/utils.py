@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-Utility Functions for Wine Quality Classification Project
-========================================================
-
-This module contains utility functions for model evaluation, visualization,
-hyperparameter tuning, and other common tasks.
-
-Author: [Your Name]
-Course: Machine Learning
-"""
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,7 +6,7 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
     confusion_matrix, classification_report, roc_curve, auc
 )
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from typing import Dict, List, Tuple, Optional, Any, Union
 import time
 import warnings
@@ -31,25 +19,7 @@ def evaluate_model(
     y_test: np.ndarray, 
     model_name: str = "Model"
 ) -> Dict[str, Any]:
-    """
-    Comprehensive model evaluation with multiple metrics.
     
-    Parameters
-    ----------
-    model : object
-        Trained model with predict method
-    X_test : np.ndarray
-        Test features
-    y_test : np.ndarray
-        Test labels
-    model_name : str, default="Model"
-        Name of the model for reporting
-        
-    Returns
-    -------
-    dict
-        Dictionary containing evaluation metrics
-    """
     print(f"\n{'='*60}")
     print(f"{model_name.upper()} EVALUATION")
     print(f"{'='*60}")
@@ -68,7 +38,6 @@ def evaluate_model(
     # Confusion matrix
     cm = confusion_matrix(y_test, predictions)
     
-    # Print results
     print(f"\nPerformance Metrics:")
     print(f"{'Accuracy:':<12} {accuracy:.4f}")
     print(f"{'Precision:':<12} {precision:.4f}")
@@ -82,11 +51,10 @@ def evaluate_model(
     print(f"Actual  Bad   {cm[0,0]:<6} {cm[0,1]:<6}")
     print(f"        Good  {cm[1,0]:<6} {cm[1,1]:<6}")
     
-    # Classification report
+    
     print(f"\nDetailed Classification Report:")
     print(classification_report(y_test, predictions, target_names=['Bad', 'Good']))
     
-    # Store results
     results = {
         'model_name': model_name,
         'accuracy': accuracy,
@@ -99,20 +67,27 @@ def evaluate_model(
         'n_test_samples': len(y_test)
     }
     
-    # Add probability scores if available
+     # Add probability scores if available
     if hasattr(model, 'predict_proba'):
         probabilities = model.predict_proba(X_test)
-        results['probabilities'] = probabilities
-        
-        # Calculate AUC if probabilities available
-        fpr, tpr, _ = roc_curve(y_test, probabilities)
-        roc_auc = auc(fpr, tpr)
-        results['roc_auc'] = roc_auc
-        results['fpr'] = fpr
-        results['tpr'] = tpr
-        
-        print(f"{'ROC AUC:':<12} {roc_auc:.4f}")
-    
+
+        # Accept both 1D (positive class probs) or 2D ([:, 1]) shapes
+        if isinstance(probabilities, np.ndarray) and probabilities.ndim == 2 and probabilities.shape[1] == 2:
+            pos_probs = probabilities[:, 1]
+        else:
+            pos_probs = np.asarray(probabilities).ravel()
+
+        results['probabilities'] = pos_probs
+
+        # Only compute ROC if both classes appear in y_test
+        if len(np.unique(y_test)) == 2:
+            fpr, tpr, _ = roc_curve(y_test, pos_probs)
+            roc_auc = auc(fpr, tpr)
+            results['roc_auc'] = roc_auc
+            results['fpr'] = fpr
+            results['tpr'] = tpr
+            print(f"{'ROC AUC:':<12} {roc_auc:.4f}")
+
     return results
 
 
@@ -124,39 +99,17 @@ def cross_validate_model(
     scoring_metrics: List[str] = ['accuracy', 'precision', 'recall', 'f1'],
     **model_params
 ) -> Dict[str, List[float]]:
-    """
-    Perform k-fold cross-validation with multiple scoring metrics.
-    
-    Parameters
-    ----------
-    model_class : class
-        Model class to instantiate
-    X : np.ndarray
-        Features
-    y : np.ndarray
-        Labels
-    cv_folds : int, default=5
-        Number of cross-validation folds
-    scoring_metrics : list, default=['accuracy', 'precision', 'recall', 'f1']
-        Metrics to calculate
-    **model_params
-        Parameters to pass to model constructor
-        
-    Returns
-    -------
-    dict
-        Cross-validation scores for each metric
-    """
+   
     print(f"\nPerforming {cv_folds}-fold cross-validation...")
     print(f"Model: {model_class.__name__}")
     print(f"Parameters: {model_params}")
     
-    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
     scores = {metric: [] for metric in scoring_metrics}
     
     fold_times = []
     
-    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X, y)):
         fold_start_time = time.time()
         
         X_train_fold, X_val_fold = X[train_idx], X[val_idx]
@@ -190,7 +143,7 @@ def cross_validate_model(
         print(f"Fold {fold+1}: Accuracy = {scores['accuracy'][-1]:.4f} "
               f"(Time: {fold_time:.2f}s)")
     
-    # Print summary
+ 
     print(f"\nCross-Validation Results:")
     print(f"{'Metric':<12} {'Mean':<10} {'Std':<10} {'Min':<10} {'Max':<10}")
     print("-" * 60)
@@ -221,33 +174,8 @@ def hyperparameter_tuning(
     scoring_metric: str = 'accuracy',
     verbose: bool = True
 ) -> Tuple[Dict, List[Dict]]:
-    """
-    Perform grid search hyperparameter tuning.
     
-    Parameters
-    ----------
-    model_class : class
-        Model class to tune
-    X_train : np.ndarray
-        Training features
-    y_train : np.ndarray
-        Training labels
-    X_val : np.ndarray
-        Validation features
-    y_val : np.ndarray
-        Validation labels
-    param_grid : dict
-        Dictionary of parameter names and values to try
-    scoring_metric : str, default='accuracy'
-        Metric to optimize
-    verbose : bool, default=True
-        Whether to print progress
-        
-    Returns
-    -------
-    tuple
-        (best_params, all_results)
-    """
+
     print(f"\n{'='*60}")
     print(f"HYPERPARAMETER TUNING - {model_class.__name__.upper()}")
     print(f"{'='*60}")
@@ -276,7 +204,7 @@ def hyperparameter_tuning(
         params = dict(zip(param_names, param_combo))
         
         try:
-            # Train model with current parameters
+            # Train model 
             model = model_class(**params)
             model.fit(X_train, y_train)
             
@@ -295,11 +223,11 @@ def hyperparameter_tuning(
             else:
                 raise ValueError(f"Unknown scoring metric: {scoring_metric}")
             
-            # Store results
+         
             result = {
                 'params': params.copy(),
                 'score': score,
-                'rank': 0  # Will be filled later
+                'rank': 0  
             }
             all_results.append(result)
             
@@ -358,36 +286,19 @@ def plot_model_comparison(
     figsize: Tuple[int, int] = (12, 8),
     save_path: Optional[str] = None
 ) -> None:
-    """
-    Create bar plot comparing multiple models across different metrics.
     
-    Parameters
-    ----------
-    results_dict : dict
-        Dictionary with model names as keys and evaluation results as values
-    metrics : list
-        List of metrics to compare
-    figsize : tuple
-        Figure size
-    save_path : str, optional
-        Path to save the plot
-    """
-    # Prepare data
+    
     model_names = list(results_dict.keys())
     n_models = len(model_names)
     n_metrics = len(metrics)
     
-    # Create figure
     fig, ax = plt.subplots(figsize=figsize)
     
-    # Set up bar positions
     x = np.arange(n_models)
     width = 0.8 / n_metrics
     
-    # Colors for different metrics
     colors = plt.cm.Set3(np.linspace(0, 1, n_metrics))
     
-    # Create bars for each metric
     for i, metric in enumerate(metrics):
         values = []
         for model_name in model_names:
@@ -406,7 +317,7 @@ def plot_model_comparison(
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
                        f'{value:.3f}', ha='center', va='bottom', fontsize=9)
     
-    # Customize plot
+  
     ax.set_xlabel('Models', fontsize=12)
     ax.set_ylabel('Score', fontsize=12)
     ax.set_title('Model Performance Comparison', fontsize=14, fontweight='bold')
@@ -429,18 +340,7 @@ def plot_confusion_matrices(
     figsize: Tuple[int, int] = (15, 5),
     save_path: Optional[str] = None
 ) -> None:
-    """
-    Plot confusion matrices for multiple models.
     
-    Parameters
-    ----------
-    results_dict : dict
-        Dictionary with model names as keys and evaluation results as values
-    figsize : tuple
-        Figure size
-    save_path : str, optional
-        Path to save the plot
-    """
     n_models = len(results_dict)
     fig, axes = plt.subplots(1, n_models, figsize=figsize)
     
@@ -471,18 +371,7 @@ def plot_roc_curves(
     figsize: Tuple[int, int] = (10, 8),
     save_path: Optional[str] = None
 ) -> None:
-    """
-    Plot ROC curves for multiple models.
     
-    Parameters
-    ----------
-    results_dict : dict
-        Dictionary with model names as keys and evaluation results as values
-    figsize : tuple
-        Figure size
-    save_path : str, optional
-        Path to save the plot
-    """
     plt.figure(figsize=figsize)
     
     colors = plt.cm.Set1(np.linspace(0, 1, len(results_dict)))
@@ -493,7 +382,7 @@ def plot_roc_curves(
                     color=colors[i], linewidth=2,
                     label=f'{model_name} (AUC = {results["roc_auc"]:.3f})')
     
-    # Plot diagonal line
+    
     plt.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random Classifier')
     
     plt.xlim([0.0, 1.0])
@@ -520,31 +409,10 @@ def plot_learning_curves(
     figsize: Tuple[int, int] = (12, 5),
     save_path: Optional[str] = None
 ) -> None:
-    """
-    Plot learning curves showing training progress.
     
-    Parameters
-    ----------
-    model : object
-        Trained model with cost_history attribute
-    X_train : np.ndarray
-        Training features
-    y_train : np.ndarray
-        Training labels
-    X_val : np.ndarray
-        Validation features
-    y_val : np.ndarray
-        Validation labels
-    model_name : str
-        Name of the model
-    figsize : tuple
-        Figure size
-    save_path : str, optional
-        Path to save the plot
-    """
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     
-    # Plot cost history if available
+    
     if hasattr(model, 'cost_history') and model.cost_history:
         axes[0].plot(model.cost_history, 'b-', linewidth=2)
         axes[0].set_title(f'{model_name} - Cost History')
@@ -552,17 +420,24 @@ def plot_learning_curves(
         axes[0].set_ylabel('Cost')
         axes[0].grid(True, alpha=0.3)
         
-        # Plot accuracy over time (simplified)
+        
         train_pred = model.predict(X_train)
         val_pred = model.predict(X_val)
         train_acc = accuracy_score(y_train, train_pred)
         val_acc = accuracy_score(y_val, val_pred)
         
-        # Create dummy learning curve data
+        
         iterations = len(model.cost_history)
         x_points = np.linspace(0, iterations-1, min(20, iterations), dtype=int)
         
-        # For simplicity, create a realistic learning curve
+        # --- Note ----------------------------------------------------------
+        # The cost history is real (tracked during training).
+        # The training and validation accuracy curves below are *illustrative*:
+        # they are generated synthetically based on final accuracies
+        # to visualize typical learning dynamics without recomputing validation
+        # accuracy at each iteration.
+        # -------------------------------------------------------------------
+
         train_accs = [train_acc - 0.1 * np.exp(-i/10) for i in range(len(x_points))]
         val_accs = [val_acc - 0.05 * np.exp(-i/15) for i in range(len(x_points))]
         
@@ -574,7 +449,7 @@ def plot_learning_curves(
         axes[1].legend()
         axes[1].grid(True, alpha=0.3)
     else:
-        # If no cost history, just show final accuracies
+        
         train_acc = accuracy_score(y_train, model.predict(X_train))
         val_acc = accuracy_score(y_val, model.predict(X_val))
         
@@ -606,29 +481,7 @@ def analyze_misclassified_samples(
     model_name: str = "Model",
     n_examples: int = 10
 ) -> pd.DataFrame:
-    """
-    Analyze misclassified examples to understand model limitations.
     
-    Parameters
-    ----------
-    model : object
-        Trained model
-    X_test : np.ndarray
-        Test features
-    y_test : np.ndarray
-        Test labels
-    feature_names : list
-        Names of features
-    model_name : str
-        Name of the model
-    n_examples : int
-        Number of examples to show
-        
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with misclassified examples
-    """
     print(f"\n{'='*60}")
     print(f"{model_name.upper()} - MISCLASSIFICATION ANALYSIS")
     print(f"{'='*60}")
@@ -655,23 +508,23 @@ def analyze_misclassified_samples(
     print(f"False Positives (predicted good, actually bad): {n_fp}")
     print(f"False Negatives (predicted bad, actually good): {n_fn}")
     
-    # Create DataFrame with misclassified examples
+    
     misclassified_X = X_test[misclassified_mask]
     misclassified_y = y_test[misclassified_mask]
     misclassified_pred = predictions[misclassified_mask]
     
-    # Create DataFrame
+   
     misclassified_df = pd.DataFrame(misclassified_X, columns=feature_names)
     misclassified_df['true_label'] = misclassified_y
     misclassified_df['predicted_label'] = misclassified_pred
     misclassified_df['error_type'] = ['FP' if pred == 1 and true == 0 else 'FN' 
                                      for pred, true in zip(misclassified_pred, misclassified_y)]
     
-    # Show sample of misclassified examples
+    
     print(f"\nSample of misclassified examples (showing first {min(n_examples, len(misclassified_df))}):")
     display_df = misclassified_df.head(n_examples)
     
-    # Show only most important features for readability
+    
     important_features = feature_names[:5]  # Show first 5 features
     display_columns = important_features + ['true_label', 'predicted_label', 'error_type']
     
@@ -685,23 +538,7 @@ def create_comprehensive_report(
     feature_names: List[str],
     save_path: Optional[str] = None
 ) -> str:
-    """
-    Create a comprehensive text report of all model results.
     
-    Parameters
-    ----------
-    results_dict : dict
-        Dictionary with model names as keys and evaluation results as values
-    feature_names : list
-        Names of features used
-    save_path : str, optional
-        Path to save the report
-        
-    Returns
-    -------
-    str
-        Report content
-    """
     from datetime import datetime
     
     report = []
@@ -739,7 +576,7 @@ def create_comprehensive_report(
     report.append(f"Best F1-Score: {best_results['f1_score']:.4f}")
     report.append("")
     
-    # Detailed results for each model
+    
     for model_name, results in results_dict.items():
         report.append(f"DETAILED RESULTS - {model_name.upper()}")
         report.append("-" * 50)
@@ -762,13 +599,12 @@ def create_comprehensive_report(
         report.append(f"       Good:    {cm[1,0]:4d}  {cm[1,1]:4d}")
         report.append("")
     
-    # Generate timestamp
+  
     report.append(f"Report generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     report.append("="*80)
     
     report_content = "\n".join(report)
     
-    # Save report if path provided
     if save_path:
         with open(save_path, 'w') as f:
             f.write(report_content)
@@ -781,17 +617,7 @@ def save_results_to_csv(
     results_dict: Dict[str, Dict],
     filepath: str
 ) -> None:
-    """
-    Save model results to CSV file.
     
-    Parameters
-    ----------
-    results_dict : dict
-        Dictionary with model names as keys and evaluation results as values
-    filepath : str
-        Path to save CSV file
-    """
-    # Create DataFrame from results
     data = []
     for model_name, results in results_dict.items():
         row = {
@@ -807,7 +633,6 @@ def save_results_to_csv(
         if 'roc_auc' in results:
             row['ROC_AUC'] = results['roc_auc']
         
-        # Add confusion matrix values
         cm = results['confusion_matrix']
         row['TN'] = cm[0, 0]  # True Negatives
         row['FP'] = cm[0, 1]  # False Positives
@@ -821,8 +646,3 @@ def save_results_to_csv(
     print(f"Results saved to CSV: {filepath}")
 
 
-if __name__ == "__main__":
-    # Example usage and testing
-    print("Wine Quality Classification - Utility Functions")
-    print("This module provides utility functions for model evaluation and visualization.")
-    print("Import this module in your main script to use these functions.")

@@ -182,13 +182,16 @@ class SVM:
         if len(X) != len(y):
             raise ValueError("X and y must have the same number of samples")
         
-        # Convert labels to -1, 1 format
-        unique_labels = np.unique(y)
-        if len(unique_labels) != 2:
-            raise ValueError("SVM requires exactly 2 classes")
-        
-        # Map labels to -1, 1
-        y_binary = np.where(y == unique_labels[0], -1, 1)
+        # enforce binary {0,1} then map to {-1,+1}
+        labels = np.unique(y)
+        if len(labels) != 2:
+           raise ValueError("SVM requires exactly 2 classes")
+        if not np.all(np.isin(labels, [0, 1])):
+ # map smallest to 0, largest to 1 to be safe
+         y01 = (y == labels.max()).astype(int)
+        else:
+             y01 = y.astype(int)
+        y_binary = np.where(y01 == 1, 1, -1)
         
         n_samples, n_features = X.shape
         self.n_features = n_features
@@ -376,13 +379,14 @@ def cross_validate_svm(
     **svm_params
 ) -> dict:
     
-    from sklearn.model_selection import KFold
+    from sklearn.model_selection import StratifiedKFold
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
     
-    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    kf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
     scores = {'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
     
-    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X, y)):
+
         X_train_fold, X_val_fold = X[train_idx], X[val_idx]
         y_train_fold, y_val_fold = y[train_idx], y[val_idx]
         
