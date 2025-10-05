@@ -6,7 +6,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from typing import Tuple, Optional, Dict, List
 import warnings
+from pathlib import Path
 warnings.filterwarnings('ignore')
+
 
 
 def load_wine_data(red_wine_path: str, white_wine_path: str) -> pd.DataFrame:
@@ -162,58 +164,68 @@ def preprocess_data(
 
 
 def create_data_visualizations(wine_data: pd.DataFrame, save_path: Optional[str] = None) -> None:
-  
     print("Creating data visualizations...")
-    
+
     # Create binary target if not exists
     if 'quality_binary' not in wine_data.columns:
         wine_data['quality_binary'] = (wine_data['quality'] >= 6).astype(int)
-    
-    # Set up the plotting style
+
+    # Style
     plt.style.use('default')
     sns.set_palette("husl")
-    
-    # Create figure with subplots
+
+    # 2x2 figure
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     fig.suptitle('Wine Quality Dataset Overview', fontsize=16, fontweight='bold')
-    
-    # Quality distribution
+
+    # (0,0) Original quality distribution
     axes[0, 0].hist(wine_data['quality'], bins=range(3, 11), alpha=0.7, edgecolor='black')
     axes[0, 0].set_title('Original Quality Distribution')
     axes[0, 0].set_xlabel('Quality Score')
     axes[0, 0].set_ylabel('Count')
-    
-    # Binary quality distribution
-    binary_counts = wine_data['quality_binary'].value_counts()
-    axes[0, 1].bar(['Bad (<6)', 'Good (≥6)'], binary_counts.values, 
+
+    # (0,1) Binary quality distribution (force order: 0 -> 1)
+    binary_counts = (
+        wine_data['quality_binary']
+        .value_counts()
+        .reindex([0, 1], fill_value=0)
+    )
+    axes[0, 1].bar(['Bad (<6)', 'Good (≥6)'],
+                   binary_counts.values,
                    color=['red', 'green'], alpha=0.7)
     axes[0, 1].set_title('Binary Quality Distribution')
     axes[0, 1].set_ylabel('Count')
-    
-    # Wine type distribution
+
+    # (1,0) Wine type distribution (force order: 0=Red, 1=White)
     if 'wine_type' in wine_data.columns:
-        wine_counts = wine_data['wine_type'].value_counts()
-        axes[1, 0].bar(['Red', 'White'], wine_counts.values, 
+        wine_counts = (
+            wine_data['wine_type']
+            .value_counts()
+            .reindex([0, 1], fill_value=0)
+        )
+        axes[1, 0].bar(['Red', 'White'],
+                       wine_counts.values,
                        color=['darkred', 'gold'], alpha=0.7)
         axes[1, 0].set_title('Wine Type Distribution')
         axes[1, 0].set_ylabel('Count')
-    
-    # Feature importance (correlation with target)
-    feature_cols = [col for col in wine_data.columns if col not in ['quality', 'quality_binary']]
+
+    # (1,1) Feature–target absolute correlations (include wine_type)
+    feature_cols = [c for c in wine_data.columns if c not in ['quality', 'quality_binary']]
     correlations = wine_data[feature_cols].corrwith(wine_data['quality_binary']).abs().sort_values(ascending=True)
-    
+
     axes[1, 1].barh(range(len(correlations)), correlations.values)
     axes[1, 1].set_yticks(range(len(correlations)))
     axes[1, 1].set_yticklabels([name.replace('_', ' ').title() for name in correlations.index])
     axes[1, 1].set_title('Feature Importance (Abs. Correlation)')
     axes[1, 1].set_xlabel('Absolute Correlation with Quality')
-    
+
     plt.tight_layout()
-    
+
     if save_path:
-        plt.savefig(f"{save_path}/data_overview.png", dpi=300, bbox_inches='tight')
-    
-    plt.show()
+       Path(save_path).mkdir(parents=True, exist_ok=True)
+       plt.savefig(f"{save_path}/data_overview.png", dpi=300, bbox_inches='tight')
+
+plt.show()
 
 
 def create_preprocessing_pipeline(
