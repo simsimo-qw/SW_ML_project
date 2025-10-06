@@ -200,7 +200,7 @@ def cross_validate_lr(
     kf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
     scores = {'accuracy': [], 'precision': [], 'recall': [], 'f1': []}
     
-    for fold, (train_idx, val_idx) in enumerate(kf.split(X)):
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X, y)):
         X_train_fold, X_val_fold = X[train_idx], X[val_idx]
         y_train_fold, y_val_fold = y[train_idx], y[val_idx]
         
