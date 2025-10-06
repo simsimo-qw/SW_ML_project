@@ -29,5 +29,4 @@ results/
 *.png
 *.jpg
 
-# Ignore datasets (if large)
-data/*.csv
+
